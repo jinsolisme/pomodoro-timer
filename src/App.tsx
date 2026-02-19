@@ -10,10 +10,143 @@ function pad(n: number) {
   return String(n).padStart(2, '0');
 }
 
-function FlipBox({ text, wide = false }: { text: string; wide?: boolean }) {
+const FLIP_DURATION_MS = 360;
+
+function usePrefersReducedMotion() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('matchMedia' in window)) {
+      return;
+    }
+
+    const mediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setPrefersReducedMotion(mediaQueryList.matches);
+
+    updatePreference();
+    mediaQueryList.addEventListener('change', updatePreference);
+
+    return () => {
+      mediaQueryList.removeEventListener('change', updatePreference);
+    };
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+function FlipBox({
+  value,
+  wide = false,
+  animate = true,
+  plain = false,
+}: {
+  value: string;
+  wide?: boolean;
+  animate?: boolean;
+  plain?: boolean;
+}) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const [incomingValue, setIncomingValue] = useState(value);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const displayValueRef = useRef(value);
+  const isFlippingRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearFlipTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const commitImmediately = useCallback(
+    (nextValue: string) => {
+      clearFlipTimer();
+      isFlippingRef.current = false;
+      setIsFlipping(false);
+      displayValueRef.current = nextValue;
+      setDisplayValue(nextValue);
+      setIncomingValue(nextValue);
+    },
+    [clearFlipTimer],
+  );
+
+  const startFlip = useCallback(
+    (nextValue: string) => {
+      if (nextValue === displayValueRef.current) {
+        return;
+      }
+
+      clearFlipTimer();
+      setIncomingValue(nextValue);
+      setIsFlipping(true);
+      isFlippingRef.current = true;
+
+      timerRef.current = setTimeout(() => {
+        displayValueRef.current = nextValue;
+        setDisplayValue(nextValue);
+        setIncomingValue(nextValue);
+        setIsFlipping(false);
+        isFlippingRef.current = false;
+        timerRef.current = null;
+      }, FLIP_DURATION_MS);
+    },
+    [clearFlipTimer],
+  );
+
+  useEffect(() => {
+    const scheduleId = window.setTimeout(() => {
+      if (!animate) {
+        if (value !== displayValueRef.current || isFlippingRef.current) {
+          commitImmediately(value);
+        }
+        return;
+      }
+
+      if (isFlippingRef.current || value === displayValueRef.current) {
+        return;
+      }
+
+      startFlip(value);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(scheduleId);
+    };
+  }, [value, animate, isFlipping, startFlip, commitImmediately]);
+
+  useEffect(() => {
+    return () => {
+      clearFlipTimer();
+    };
+  }, [clearFlipTimer]);
+
+  if (plain) {
+    return (
+      <div className={`flip-box flip-box--plain${wide ? ' flip-box--wide' : ''}`}>
+        {value}
+      </div>
+    );
+  }
+
   return (
-    <div className={`flip-box${wide ? ' flip-box--wide' : ''}`}>
-      {text}
+    <div className={`flip-box${wide ? ' flip-box--wide' : ''}${isFlipping ? ' is-flipping' : ''}`}>
+      <div className="flip-box__half flip-box__half--top">
+        <span>{displayValue}</span>
+      </div>
+      <div className="flip-box__half flip-box__half--bottom">
+        <span>{displayValue}</span>
+      </div>
+      {isFlipping ? (
+        <>
+          <div className="flip-box__flap flip-box__flap--top">
+            <span>{displayValue}</span>
+          </div>
+          <div className="flip-box__flap flip-box__flap--bottom">
+            <span>{incomingValue}</span>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -27,6 +160,7 @@ function getLabel(state: TimerState, totalSeconds: number): string {
 
 export default function App() {
   const { remainingSeconds, state, start, reset } = useTimer();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [goal, setGoal] = useState('');
   const [dragPreviewMinutes, setDragPreviewMinutes] = useState(0);
@@ -126,6 +260,7 @@ export default function App() {
   const completionDescription = trimmedGoal
     ? `Goal complete: ${trimmedGoal}`
     : 'Session complete. Take a short break and start the next round.';
+  const shouldAnimateClock = !prefersReducedMotion && !isDialDragging;
 
   return (
     <div className="app-shell">
@@ -145,9 +280,9 @@ export default function App() {
 
           {/* Flip-clock header */}
           <div className="flip-header" role="timer" aria-live="polite" aria-label="Timer display">
-            <FlipBox text={label} wide />
-            <FlipBox text={displayMins} />
-            <FlipBox text={displaySecs} />
+            <FlipBox value={label} wide animate={false} plain />
+            <FlipBox value={displayMins} animate={shouldAnimateClock} />
+            <FlipBox value={displaySecs} animate={shouldAnimateClock} />
           </div>
 
           {/* Status */}

@@ -107,9 +107,22 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Production URL: $url" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Validate deployment is ready
+        run: |
+          inspect_output="$(vercel inspect "${{ steps.deploy.outputs.url }}" --token="$VERCEL_TOKEN")"
+          echo "$inspect_output"
+          if ! echo "$inspect_output" | grep -qi "ready"; then
+            echo "::error::Deployment is not marked as Ready"
+            exit 1
+          fi
+
       - name: Health check deployment URL
         run: |
           status="$(curl -I -s -o /dev/null -w '%{http_code}' "${{ steps.deploy.outputs.url }}")"
+          if [ "$status" -eq 401 ]; then
+            echo "::warning::Deployment URL returned HTTP 401 (likely deployment protection). Ready-state check already passed."
+            exit 0
+          fi
           if [ "$status" -lt 200 ] || [ "$status" -ge 400 ]; then
             echo "::error::Health check failed with HTTP $status"
             exit 1

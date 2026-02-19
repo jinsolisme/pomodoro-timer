@@ -6,6 +6,11 @@ let fallbackAudio: HTMLAudioElement | null = null;
 let fallbackAudioUnlocked = false;
 let fallbackUnlockInFlight: Promise<void> | null = null;
 let fallbackWavUrl: string | null = null;
+let fallbackRunId = 0;
+let fallbackIsPlaying = false;
+
+const FALLBACK_REPEAT_COUNT = 4;
+const FALLBACK_REPEAT_GAP_MS = 180;
 
 interface AlarmPreset {
   beepCount: number;
@@ -160,20 +165,94 @@ function getFallbackAudio(): HTMLAudioElement | null {
   return fallbackAudio;
 }
 
-function playFallbackAlarm(): void {
+function waitMs(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function waitForAudioEnd(audio: HTMLAudioElement): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const fallbackTimeoutMs = Number.isFinite(audio.duration) && audio.duration > 0
+      ? audio.duration * 1000 + 80
+      : 420;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      audio.removeEventListener('ended', finish);
+      clearTimeout(timeoutId);
+      resolve();
+    };
+
+    const timeoutId = window.setTimeout(finish, fallbackTimeoutMs);
+    audio.addEventListener('ended', finish, { once: true });
+  });
+}
+
+async function playFallbackAlarmSequence(): Promise<void> {
   const audio = getFallbackAudio();
   if (!audio) {
     playVibrationFallback();
     return;
   }
 
-  audio.pause();
-  audio.currentTime = 0;
-  audio.volume = 1;
+  if (fallbackIsPlaying) {
+    return;
+  }
+  fallbackIsPlaying = true;
 
-  void audio.play().catch(() => {
-    playVibrationFallback();
-  });
+  const runId = ++fallbackRunId;
+  let playedAtLeastOnce = false;
+
+  try {
+    for (let i = 0; i < FALLBACK_REPEAT_COUNT; i++) {
+      if (runId !== fallbackRunId) {
+        break;
+      }
+
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = 1;
+
+      try {
+        await audio.play();
+        playedAtLeastOnce = true;
+      } catch {
+        if (!playedAtLeastOnce) {
+          playVibrationFallback();
+        }
+        break;
+      }
+
+      await waitForAudioEnd(audio);
+
+      if (i < FALLBACK_REPEAT_COUNT - 1 && runId === fallbackRunId) {
+        await waitMs(FALLBACK_REPEAT_GAP_MS);
+      }
+    }
+  } finally {
+    if (runId === fallbackRunId) {
+      fallbackIsPlaying = false;
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  }
+}
+
+function stopFallbackAlarmPlayback(): void {
+  fallbackRunId += 1;
+  fallbackIsPlaying = false;
+
+  if (fallbackAudio) {
+    fallbackAudio.pause();
+    fallbackAudio.currentTime = 0;
+  }
+
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    navigator.vibrate(0);
+  }
 }
 
 function primeFallbackAudio(): void {
@@ -225,13 +304,13 @@ export function primeAlarmAudio(): void {
 
 export function playAlarm(): void {
   if (isLikelyIOS()) {
-    playFallbackAlarm();
+    void playFallbackAlarmSequence();
     return;
   }
 
   const ctx = getAudioContext();
   if (!ctx) {
-    playFallbackAlarm();
+    void playFallbackAlarmSequence();
     return;
   }
 
@@ -243,12 +322,22 @@ export function playAlarm(): void {
         scheduleAlarm(ctx);
       })
       .catch(() => {
-        playFallbackAlarm();
+        void playFallbackAlarmSequence();
       });
     return;
   }
 
   scheduleAlarm(ctx);
+}
+
+export function stopAlarm(): void {
+  stopFallbackAlarmPlayback();
+
+  if (audioCtx && audioCtx.state === 'running') {
+    void audioCtx.suspend().catch(() => {
+      // Ignore suspend errors.
+    });
+  }
 }
 
 export function installAudioUnlock(): void {

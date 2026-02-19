@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnalogDial } from './components/AnalogDial';
 import { ResetButton } from './components/ResetButton';
 import { useTimer } from './hooks/useTimer';
@@ -31,14 +31,56 @@ export default function App() {
   const [goal, setGoal] = useState('');
   const [dragPreviewMinutes, setDragPreviewMinutes] = useState(0);
   const [isDialDragging, setIsDialDragging] = useState(false);
+  const [isCompletionDismissed, setIsCompletionDismissed] = useState(false);
+  const completionAutoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const isCompletionModalOpen = state === 'done' && !isCompletionDismissed;
+
+  const clearCompletionTimer = useCallback(() => {
+    if (completionAutoCloseTimerRef.current !== null) {
+      clearTimeout(completionAutoCloseTimerRef.current);
+      completionAutoCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const closeCompletionModal = useCallback(() => {
+    clearCompletionTimer();
+    setIsCompletionDismissed(true);
+  }, [clearCompletionTimer]);
 
   useEffect(() => {
     installAudioUnlock();
   }, []);
 
+  useEffect(() => {
+    if (!isCompletionModalOpen) {
+      clearCompletionTimer();
+      return;
+    }
+
+    completionCloseButtonRef.current?.focus();
+    completionAutoCloseTimerRef.current = setTimeout(() => {
+      setIsCompletionDismissed(true);
+      completionAutoCloseTimerRef.current = null;
+    }, 4000);
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeCompletionModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+      clearCompletionTimer();
+    };
+  }, [isCompletionModalOpen, closeCompletionModal, clearCompletionTimer]);
+
   const handleDragEnd = useCallback(
     (minutes: number) => {
       const seconds = minutes * 60;
+      setIsCompletionDismissed(false);
       setTotalSeconds(seconds);
       start(seconds);
     },
@@ -46,11 +88,13 @@ export default function App() {
   );
 
   const handleReset = useCallback(() => {
+    closeCompletionModal();
     reset();
     setTotalSeconds(0);
     setDragPreviewMinutes(0);
     setIsDialDragging(false);
-  }, [reset]);
+    setIsCompletionDismissed(true);
+  }, [reset, closeCompletionModal]);
 
   const handleDragPreview = useCallback(
     ({ isDragging, minutes }: { isDragging: boolean; minutes: number }) => {
@@ -78,6 +122,10 @@ export default function App() {
   const displaySecs = shouldShowPlaceholder
     ? '--'
     : pad(previewSeconds % 60);
+  const trimmedGoal = goal.trim();
+  const completionDescription = trimmedGoal
+    ? `Goal complete: ${trimmedGoal}`
+    : 'Session complete. Take a short break and start the next round.';
 
   return (
     <div className="app-shell">
@@ -123,6 +171,33 @@ export default function App() {
 
         </main>
       </div>
+
+      {isCompletionModalOpen ? (
+        <div className="completion-modal-backdrop" role="presentation">
+          <section
+            className="completion-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="completion-modal-title"
+            aria-describedby="completion-modal-description"
+          >
+            <h2 id="completion-modal-title" className="completion-modal-title">
+              Timer complete
+            </h2>
+            <p id="completion-modal-description" className="completion-modal-description">
+              {completionDescription}
+            </p>
+            <button
+              ref={completionCloseButtonRef}
+              type="button"
+              className="completion-modal-button"
+              onClick={closeCompletionModal}
+            >
+              OK
+            </button>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

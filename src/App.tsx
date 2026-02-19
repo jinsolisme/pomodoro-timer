@@ -12,6 +12,15 @@ function pad(n: number) {
 
 const FLIP_DURATION_MS = 360;
 
+function toFlipUnits(value: string, splitDigits: boolean): string[] {
+  if (!splitDigits) {
+    return [value];
+  }
+
+  const normalized = value.length >= 2 ? value.slice(-2) : value.padStart(2, '0');
+  return [normalized[0] ?? '0', normalized[1] ?? '0'];
+}
+
 function usePrefersReducedMotion() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
@@ -39,56 +48,101 @@ function FlipBox({
   wide = false,
   animate = true,
   plain = false,
+  splitDigits = false,
 }: {
   value: string;
   wide?: boolean;
   animate?: boolean;
   plain?: boolean;
+  splitDigits?: boolean;
 }) {
-  const [displayValue, setDisplayValue] = useState(value);
-  const [incomingValue, setIncomingValue] = useState(value);
-  const [isFlipping, setIsFlipping] = useState(false);
-  const displayValueRef = useRef(value);
-  const isFlippingRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [displayUnits, setDisplayUnits] = useState(() => toFlipUnits(value, splitDigits));
+  const [incomingUnits, setIncomingUnits] = useState(() => toFlipUnits(value, splitDigits));
+  const [flippingUnits, setFlippingUnits] = useState(() =>
+    toFlipUnits(value, splitDigits).map(() => false),
+  );
+  const displayUnitsRef = useRef(displayUnits);
+  const incomingUnitsRef = useRef(incomingUnits);
+  const flippingUnitsRef = useRef(flippingUnits);
+  const flipTimersRef = useRef<Array<ReturnType<typeof setTimeout> | null>>(
+    toFlipUnits(value, splitDigits).map(() => null),
+  );
 
-  const clearFlipTimer = useCallback(() => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+  const clearFlipTimer = useCallback((index: number) => {
+    if (flipTimersRef.current[index] !== null) {
+      clearTimeout(flipTimersRef.current[index]);
+      flipTimersRef.current[index] = null;
     }
   }, []);
 
-  const commitImmediately = useCallback(
-    (nextValue: string) => {
-      clearFlipTimer();
-      isFlippingRef.current = false;
-      setIsFlipping(false);
-      displayValueRef.current = nextValue;
-      setDisplayValue(nextValue);
-      setIncomingValue(nextValue);
+  const clearAllFlipTimers = useCallback(() => {
+    for (let index = 0; index < flipTimersRef.current.length; index += 1) {
+      clearFlipTimer(index);
+    }
+  }, [clearFlipTimer]);
+
+  const commitUnitsImmediately = useCallback(
+    (nextUnits: string[]) => {
+      clearAllFlipTimers();
+      flipTimersRef.current = nextUnits.map(() => null);
+
+      const resetFlippingUnits = nextUnits.map(() => false);
+      displayUnitsRef.current = [...nextUnits];
+      incomingUnitsRef.current = [...nextUnits];
+      flippingUnitsRef.current = resetFlippingUnits;
+
+      setDisplayUnits([...nextUnits]);
+      setIncomingUnits([...nextUnits]);
+      setFlippingUnits(resetFlippingUnits);
     },
-    [clearFlipTimer],
+    [clearAllFlipTimers],
   );
 
-  const startFlip = useCallback(
-    (nextValue: string) => {
-      if (nextValue === displayValueRef.current) {
+  const startFlipAt = useCallback(
+    (index: number, nextUnit: string) => {
+      if (nextUnit === displayUnitsRef.current[index]) {
         return;
       }
 
-      clearFlipTimer();
-      setIncomingValue(nextValue);
-      setIsFlipping(true);
-      isFlippingRef.current = true;
+      clearFlipTimer(index);
 
-      timerRef.current = setTimeout(() => {
-        displayValueRef.current = nextValue;
-        setDisplayValue(nextValue);
-        setIncomingValue(nextValue);
-        setIsFlipping(false);
-        isFlippingRef.current = false;
-        timerRef.current = null;
+      setIncomingUnits((prev) => {
+        const next = [...prev];
+        next[index] = nextUnit;
+        incomingUnitsRef.current = next;
+        return next;
+      });
+
+      setFlippingUnits((prev) => {
+        const next = [...prev];
+        next[index] = true;
+        flippingUnitsRef.current = next;
+        return next;
+      });
+
+      flipTimersRef.current[index] = setTimeout(() => {
+        setDisplayUnits((prev) => {
+          const next = [...prev];
+          next[index] = nextUnit;
+          displayUnitsRef.current = next;
+          return next;
+        });
+
+        setIncomingUnits((prev) => {
+          const next = [...prev];
+          next[index] = nextUnit;
+          incomingUnitsRef.current = next;
+          return next;
+        });
+
+        setFlippingUnits((prev) => {
+          const next = [...prev];
+          next[index] = false;
+          flippingUnitsRef.current = next;
+          return next;
+        });
+
+        flipTimersRef.current[index] = null;
       }, FLIP_DURATION_MS);
     },
     [clearFlipTimer],
@@ -96,30 +150,52 @@ function FlipBox({
 
   useEffect(() => {
     const scheduleId = window.setTimeout(() => {
-      if (!animate) {
-        if (value !== displayValueRef.current || isFlippingRef.current) {
-          commitImmediately(value);
-        }
-        return;
+      const nextUnits = toFlipUnits(value, splitDigits);
+      if (nextUnits.length !== displayUnitsRef.current.length) {
+        commitUnitsImmediately(nextUnits);
       }
-
-      if (isFlippingRef.current || value === displayValueRef.current) {
-        return;
-      }
-
-      startFlip(value);
     }, 0);
 
     return () => {
       window.clearTimeout(scheduleId);
     };
-  }, [value, animate, isFlipping, startFlip, commitImmediately]);
+  }, [value, splitDigits, commitUnitsImmediately]);
+
+  useEffect(() => {
+    const scheduleId = window.setTimeout(() => {
+      const nextUnits = toFlipUnits(value, splitDigits);
+
+      if (!animate) {
+        const hasDiff = nextUnits.some(
+          (unit, index) => unit !== displayUnitsRef.current[index] || flippingUnitsRef.current[index],
+        );
+        if (hasDiff) {
+          commitUnitsImmediately(nextUnits);
+        }
+        return;
+      }
+
+      nextUnits.forEach((unit, index) => {
+        if (flippingUnitsRef.current[index]) {
+          return;
+        }
+        if (unit === displayUnitsRef.current[index]) {
+          return;
+        }
+        startFlipAt(index, unit);
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(scheduleId);
+    };
+  }, [value, animate, splitDigits, flippingUnits, startFlipAt, commitUnitsImmediately]);
 
   useEffect(() => {
     return () => {
-      clearFlipTimer();
+      clearAllFlipTimers();
     };
-  }, [clearFlipTimer]);
+  }, [clearAllFlipTimers]);
 
   if (plain) {
     return (
@@ -129,15 +205,55 @@ function FlipBox({
     );
   }
 
+  const isAnyFlipping = flippingUnits.some(Boolean);
+  const rootClassName = `flip-box${wide ? ' flip-box--wide' : ''}${splitDigits ? ' flip-box--split' : ''}${isAnyFlipping ? ' is-flipping' : ''}`;
+
+  if (splitDigits) {
+    return (
+      <div className={rootClassName}>
+        <div className="flip-box__digit-track">
+          {displayUnits.map((displayUnit, index) => {
+            const incomingUnit = incomingUnits[index] ?? displayUnit;
+            const isDigitFlipping = flippingUnits[index] ?? false;
+
+            return (
+              <div className={`flip-box__digit${isDigitFlipping ? ' is-flipping' : ''}`} key={index}>
+                <div className="flip-box__digit-half flip-box__digit-half--top">
+                  <span>{displayUnit}</span>
+                </div>
+                <div className="flip-box__digit-half flip-box__digit-half--bottom">
+                  <span>{displayUnit}</span>
+                </div>
+                {isDigitFlipping ? (
+                  <>
+                    <div className="flip-box__digit-flap flip-box__digit-flap--top">
+                      <span>{displayUnit}</span>
+                    </div>
+                    <div className="flip-box__digit-flap flip-box__digit-flap--bottom">
+                      <span>{incomingUnit}</span>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  const displayValue = displayUnits[0] ?? value;
+  const incomingValue = incomingUnits[0] ?? displayValue;
+
   return (
-    <div className={`flip-box${wide ? ' flip-box--wide' : ''}${isFlipping ? ' is-flipping' : ''}`}>
+    <div className={rootClassName}>
       <div className="flip-box__half flip-box__half--top">
         <span>{displayValue}</span>
       </div>
       <div className="flip-box__half flip-box__half--bottom">
         <span>{displayValue}</span>
       </div>
-      {isFlipping ? (
+      {isAnyFlipping ? (
         <>
           <div className="flip-box__flap flip-box__flap--top">
             <span>{displayValue}</span>
@@ -266,7 +382,7 @@ export default function App() {
     <div className="app-shell">
       <div className="app-outer">
         <main className="app-frame">
-          <div className="goal-input-group">
+          <div className="goal-input-group goal-input-group--mobile">
             <input
               id="timer-goal"
               className="goal-input"
@@ -281,28 +397,58 @@ export default function App() {
           {/* Flip-clock header */}
           <div className="flip-header" role="timer" aria-live="polite" aria-label="Timer display">
             <FlipBox value={label} wide animate={false} plain />
-            <FlipBox value={displayMins} animate={shouldAnimateClock} />
-            <FlipBox value={displaySecs} animate={shouldAnimateClock} />
+            <FlipBox value={displayMins} animate={shouldAnimateClock} splitDigits />
+            <FlipBox value={displaySecs} animate={shouldAnimateClock} splitDigits />
           </div>
 
-          {/* Status */}
-          <div className="status-line">
-            <p className="status-message" data-state={state}>
-              {statusText}
-            </p>
+          <div className="timer-layout">
+            <section className="timer-layout__dial" aria-label="Dial controls">
+              {/* Dial */}
+              <AnalogDial
+                remainingSeconds={remainingSeconds}
+                totalSeconds={totalSeconds}
+                timerState={state}
+                onDragEnd={handleDragEnd}
+                onDragPreview={handleDragPreview}
+              />
+
+              {/* Reset */}
+              <div className="reset-button-wrap reset-button-wrap--mobile">
+                <ResetButton onClick={handleReset} disabled={isResetDisabled} />
+              </div>
+            </section>
+
+            <section className="timer-layout__info" aria-label="Timer status">
+              <div className="goal-input-group goal-input-group--tablet">
+                <input
+                  id="timer-goal-tablet"
+                  className="goal-input"
+                  type="text"
+                  value={goal}
+                  onChange={(event) => setGoal(event.target.value)}
+                  placeholder="Write your goal"
+                  maxLength={80}
+                />
+              </div>
+
+              <div className="tablet-time" role="timer" aria-live="polite" aria-label="Remaining time">
+                <FlipBox value={label} wide animate={false} plain />
+                <FlipBox value={displayMins} animate={shouldAnimateClock} splitDigits />
+                <FlipBox value={displaySecs} animate={shouldAnimateClock} splitDigits />
+              </div>
+
+              {/* Status */}
+              <div className="status-line">
+                <p className="status-message" data-state={state}>
+                  {statusText}
+                </p>
+              </div>
+
+              <div className="reset-button-wrap reset-button-wrap--tablet">
+                <ResetButton onClick={handleReset} disabled={isResetDisabled} />
+              </div>
+            </section>
           </div>
-
-          {/* Dial */}
-          <AnalogDial
-            remainingSeconds={remainingSeconds}
-            totalSeconds={totalSeconds}
-            timerState={state}
-            onDragEnd={handleDragEnd}
-            onDragPreview={handleDragPreview}
-          />
-
-          {/* Reset */}
-          <ResetButton onClick={handleReset} disabled={isResetDisabled} />
 
         </main>
       </div>
@@ -317,7 +463,7 @@ export default function App() {
             aria-describedby="completion-modal-description"
           >
             <h2 id="completion-modal-title" className="completion-modal-title">
-              Timer complete
+              Timer<br />complete
             </h2>
             <p id="completion-modal-description" className="completion-modal-description">
               {completionDescription}

@@ -109,12 +109,7 @@ jobs:
 
       - name: Validate deployment is ready
         run: |
-          inspect_output="$(vercel inspect "${{ steps.deploy.outputs.url }}" --token="$VERCEL_TOKEN")"
-          echo "$inspect_output"
-          if ! echo "$inspect_output" | grep -qi "ready"; then
-            echo "::error::Deployment is not marked as Ready"
-            exit 1
-          fi
+          vercel inspect "${{ steps.deploy.outputs.url }}" --wait --timeout 90s --token="$VERCEL_TOKEN"
 
       - name: Health check deployment URL
         run: |

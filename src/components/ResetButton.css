@@ -1,0 +1,41 @@
+.reset-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #b60d1c;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: opacity var(--time-quick, 180ms) ease;
+  z-index: 1;
+}
+
+.reset-button:hover:not(:disabled) {
+  opacity: 0.7;
+}
+
+.reset-button:active:not(:disabled) {
+  opacity: 0.5;
+}
+
+.reset-button:focus-visible {
+  outline: 2px solid #b60d1c;
+  outline-offset: 3px;
+}
+
+.reset-button:disabled {
+  color: #cccccc;
+  cursor: not-allowed;
+}
+
+.reset-button__dot {
+  font-size: 1.1rem;
+  line-height: 1;
+}

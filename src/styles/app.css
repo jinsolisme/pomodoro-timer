@@ -1,0 +1,209 @@
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(10px, 4vw, var(--space-6));
+  background: #ffffff;
+}
+
+.app-frame {
+  width: 100%;
+  max-width: 400px;
+  background: var(--panel-bg);
+  border: 1.8px solid var(--panel-edge);
+  border-radius: 18px;
+  box-shadow:
+    0 6px 32px rgba(0, 0, 0, 0.13),
+    inset 0 0 40px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: clamp(20px, 8vw, var(--space-8)) clamp(12px, 5vw, var(--space-5)) clamp(20px, 7vw, 28px);
+  position: relative;
+}
+
+.goal-input-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  z-index: 1;
+}
+
+.goal-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-bottom: 1px solid rgba(28, 28, 28, 0.28);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family:
+    "Helvetica Neue Condensed Black",
+    "HelveticaNeue-CondensedBlack",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: clamp(27px, 9.8vw, 37px);
+  font-weight: 900;
+  font-style: normal;
+  font-stretch: condensed;
+  font-synthesis: none;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 4px 0 8px;
+  caret-color: var(--accent);
+  outline: none;
+  transition: border-color var(--time-quick) var(--ease-standard), color var(--time-quick) var(--ease-standard);
+}
+
+.goal-input::placeholder {
+  color: rgba(26, 26, 26, 0.3);
+}
+
+.goal-input:focus {
+  border-color: var(--focus-ring);
+  color: #121212;
+}
+
+/* Outer shadow wrapper */
+.app-outer {
+  width: min(100%, 500px);
+  padding: clamp(8px, 3vw, 20px);
+  box-sizing: border-box;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: none;
+}
+
+/* Flip-clock header */
+.flip-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: clamp(2px, 1vw, 4px);
+  z-index: 1;
+}
+
+.flip-box {
+  background: #2d2d2d;
+  color: #ffffff;
+  font-family:
+    "Helvetica Neue Condensed Black",
+    "HelveticaNeue-CondensedBlack",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-weight: 900;
+  font-stretch: condensed;
+  font-style: normal;
+  font-size: clamp(28px, 10vw, 38px);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: center;
+  border-radius: 5px;
+  line-height: 1;
+  block-size: clamp(50px, 16vw, 62px);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  min-width: clamp(58px, 22vw, 80px);
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 30px 3px rgba(0, 0, 0, 0.1);
+  user-select: none;
+}
+
+.flip-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.30) 0%,
+    rgba(0, 0, 0, 0.20) 48%,
+    rgba(0, 0, 0, 0) 60%
+  );
+  pointer-events: none;
+}
+
+.flip-box--wide {
+  min-width: clamp(78px, 29vw, 104px);
+  font-size: clamp(25px, 9vw, 36px);
+  letter-spacing: 0.04em;
+}
+
+/* Status line */
+.status-line {
+  min-height: 1.25rem;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+}
+
+.status-message {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  animation: status-fade var(--time-quick) var(--ease-standard);
+}
+
+.status-message[data-state="done"] {
+  color: var(--accent);
+  font-weight: 700;
+  font-style: normal;
+}
+
+@keyframes status-fade {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .app-shell {
+    padding: var(--space-10);
+  }
+
+  .app-outer {
+    padding: 20px;
+  }
+
+  .app-frame {
+    max-width: 460px;
+    gap: var(--space-5);
+    padding: 40px 44px 36px;
+  }
+
+  .goal-input {
+    font-size: 41px;
+  }
+
+  .flip-box {
+    font-size: 42px;
+    block-size: 62px;
+    min-width: 88px;
+  }
+
+  .flip-box--wide {
+    min-width: 116px;
+  }
+}

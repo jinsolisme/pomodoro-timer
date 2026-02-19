@@ -1,0 +1,42 @@
+:root {
+  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Helvetica Neue", "Courier New", monospace;
+
+  --bg-layer-primary: #ffffff;
+  --panel-bg: #ffffff;
+  --panel-edge: #1c1c1c;
+  --panel-shadow:
+    0 4px 32px rgba(0, 0, 0, 0.13),
+    0 1px 4px rgba(0, 0, 0, 0.08);
+
+  --text-primary: #1a1a1a;
+  --text-muted: #555555;
+  --text-faint: #888888;
+  --accent: #b60d1c;
+  --accent-strong: #8a0a15;
+  --focus-ring: #b60d1c;
+
+  --radius-xl: 18px;
+  --radius-pill: 999px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --time-quick: 180ms;
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

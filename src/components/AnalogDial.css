@@ -1,0 +1,44 @@
+.dial-svg {
+  width: min(100%, 300px);
+  height: auto;
+  margin-top: 6px;
+  cursor: grab;
+  touch-action: none;
+  z-index: 1;
+}
+
+.dial-svg:active {
+  cursor: grabbing;
+}
+
+.dial-svg.is-locked {
+  cursor: default;
+}
+
+.dial-face {
+  fill: #ffffff;
+}
+
+.dial-sector {
+  fill: #c42218;
+}
+
+.dial-tick {
+  opacity: 1;
+}
+
+.dial-tick-major {
+  stroke: #1a1a1a;
+  stroke-width: 1.8;
+}
+
+.dial-tick-minor {
+  stroke: #888888;
+  stroke-width: 1;
+}
+
+@media (min-width: 768px) {
+  .dial-svg {
+    width: min(68vw, 320px);
+  }
+}

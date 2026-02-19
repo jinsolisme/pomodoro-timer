@@ -33,12 +33,23 @@ export function useTimer(): UseTimerReturn {
       setState('running');
 
       intervalRef.current = setInterval(() => {
+        let didFinish = false;
         setRemainingSeconds((prev) => {
           if (prev <= 1) {
+            didFinish = true;
             return 0;
           }
           return prev - 1;
         });
+
+        if (didFinish) {
+          clearTimer();
+          setState('done');
+          if (!alarmFiredRef.current) {
+            alarmFiredRef.current = true;
+            playAlarm();
+          }
+        }
       }, 1000);
     },
     [clearTimer],
@@ -50,18 +61,6 @@ export function useTimer(): UseTimerReturn {
     setRemainingSeconds(0);
     setState('idle');
   }, [clearTimer]);
-
-  // Watch for completion
-  useEffect(() => {
-    if (state === 'running' && remainingSeconds === 0) {
-      clearTimer();
-      setState('done');
-      if (!alarmFiredRef.current) {
-        alarmFiredRef.current = true;
-        playAlarm();
-      }
-    }
-  }, [remainingSeconds, state, clearTimer]);
 
   // Cleanup on unmount
   useEffect(() => {

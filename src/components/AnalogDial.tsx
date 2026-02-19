@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useDialDrag } from '../hooks/useDialDrag';
 import type { TimerState } from '../hooks/useTimer';
 import './AnalogDial.css';
@@ -73,6 +73,7 @@ interface AnalogDialProps {
   totalSeconds: number;
   timerState: TimerState;
   onDragEnd: (minutes: number) => void;
+  onDragPreview?: (payload: { isDragging: boolean; minutes: number }) => void;
 }
 
 export function AnalogDial({
@@ -80,9 +81,18 @@ export function AnalogDial({
   totalSeconds,
   timerState,
   onDragEnd,
+  onDragPreview,
 }: AnalogDialProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const { isDragging, angleDeg: dragAngleDeg } = useDialDrag({ svgRef, onDragEnd });
+  const { isDragging, dragMinutes, angleDeg: dragAngleDeg } = useDialDrag({ svgRef, onDragEnd });
+
+  useEffect(() => {
+    if (!onDragPreview) return;
+    onDragPreview({
+      isDragging,
+      minutes: isDragging ? dragMinutes : 0,
+    });
+  }, [isDragging, dragMinutes, onDragPreview]);
 
   const clampedRemaining = Math.max(0, Math.min(MAX_DIAL_SECONDS, remainingSeconds));
   const countdownAngle =

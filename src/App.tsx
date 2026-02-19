@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnalogDial } from './components/AnalogDial';
 import { ResetButton } from './components/ResetButton';
 import { useTimer } from './hooks/useTimer';
 import type { TimerState } from './hooks/useTimer';
+import { installAudioUnlock } from './utils/sound';
 import './styles/app.css';
 
 function pad(n: number) {
@@ -28,6 +29,12 @@ export default function App() {
   const { remainingSeconds, state, start, reset } = useTimer();
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [goal, setGoal] = useState('');
+  const [dragPreviewMinutes, setDragPreviewMinutes] = useState(0);
+  const [isDialDragging, setIsDialDragging] = useState(false);
+
+  useEffect(() => {
+    installAudioUnlock();
+  }, []);
 
   const handleDragEnd = useCallback(
     (minutes: number) => {
@@ -41,7 +48,17 @@ export default function App() {
   const handleReset = useCallback(() => {
     reset();
     setTotalSeconds(0);
+    setDragPreviewMinutes(0);
+    setIsDialDragging(false);
   }, [reset]);
+
+  const handleDragPreview = useCallback(
+    ({ isDragging, minutes }: { isDragging: boolean; minutes: number }) => {
+      setIsDialDragging(isDragging);
+      setDragPreviewMinutes(minutes);
+    },
+    [],
+  );
 
   const isResetDisabled = state === 'idle' && totalSeconds === 0;
 
@@ -53,12 +70,14 @@ export default function App() {
         : 'Rotate the dial to set focus time.';
 
   const label = getLabel(state, totalSeconds);
-  const displayMins = state === 'idle' && totalSeconds === 0
+  const previewSeconds = isDialDragging ? dragPreviewMinutes * 60 : remainingSeconds;
+  const shouldShowPlaceholder = state === 'idle' && totalSeconds === 0 && !isDialDragging;
+  const displayMins = shouldShowPlaceholder
     ? '--'
-    : pad(Math.floor(remainingSeconds / 60));
-  const displaySecs = state === 'idle' && totalSeconds === 0
+    : pad(Math.floor(previewSeconds / 60));
+  const displaySecs = shouldShowPlaceholder
     ? '--'
-    : pad(remainingSeconds % 60);
+    : pad(previewSeconds % 60);
 
   return (
     <div className="app-shell">
@@ -96,6 +115,7 @@ export default function App() {
             totalSeconds={totalSeconds}
             timerState={state}
             onDragEnd={handleDragEnd}
+            onDragPreview={handleDragPreview}
           />
 
           {/* Reset */}

@@ -2,6 +2,38 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Deployment Strategy
+
+This repository uses:
+- Pull request to `main` -> Vercel Preview deployment
+- Push to `main` -> Vercel Production deployment + health check
+
+Workflow file:
+- `.github/workflows/vercel-deploy.yml`
+
+### Required GitHub Secrets
+
+Set these repository secrets:
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+You can set them via GitHub CLI:
+
+```bash
+gh secret set VERCEL_TOKEN -b "<your-vercel-token>"
+gh secret set VERCEL_ORG_ID -b "<your-vercel-org-id>"
+gh secret set VERCEL_PROJECT_ID -b "<your-vercel-project-id>"
+```
+
+### Recommended Git Flow
+
+1. Create a feature branch (`feature/*`)
+2. Open PR to `main` and validate Preview URL
+3. Merge PR to trigger Production deployment
+
+Use manual `vercel --prod` only for emergency hotfixes.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh

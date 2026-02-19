@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI Iteration Hygiene"
+  short_description: "Run fast, reliable frontend tweak loops"
+  default_prompt: "Process this UI tweak request with minimal repetition, preserve meaningful constants, and validate the visual/interaction result after each change."

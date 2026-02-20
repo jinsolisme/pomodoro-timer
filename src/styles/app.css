@@ -39,10 +39,17 @@
 }
 
 .theme-toggle-row {
-  width: 100%;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   z-index: 2;
+}
+
+.theme-toggle-row--desktop {
+  display: none;
+}
+
+.theme-toggle-row--mobile {
+  display: flex;
 }
 
 .theme-toggle-button {
@@ -75,6 +82,42 @@
 .theme-toggle-button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+.dial-action-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0;
+}
+
+.reset-button-wrap--mobile {
+  width: 100%;
+  display: block;
+}
+
+.dial-action-row > .reset-button {
+  grid-column: 2;
+  justify-self: center;
+  font-size: 0.72rem;
+  padding: 5px 7px;
+}
+
+.dial-action-row > .theme-toggle-row--mobile {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.theme-toggle-row--mobile .theme-toggle-button {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .goal-input {
@@ -363,12 +406,20 @@
 }
 
 .flip-box--plain {
+  background: linear-gradient(to bottom, #3a3a3a 0%, #2f2f2f 49%, #292929 50%, #242424 100%);
+  box-shadow:
+    inset 0 11px 10px rgba(0, 0, 0, 0.18),
+    inset 0 -2px 5px rgba(255, 255, 255, 0.035);
   display: grid;
   place-items: center;
   line-height: 1;
 }
 
 .flip-box--plain::before {
+  display: none;
+}
+
+.flip-box--plain::after {
   display: none;
 }
 
@@ -678,7 +729,19 @@
   }
 
   .theme-toggle-row {
-    justify-content: flex-start;
+    width: auto;
+  }
+
+  .theme-toggle-row--desktop {
+    display: flex;
+    position: absolute;
+    top: clamp(10px, 2.4vw, 14px);
+    left: clamp(16px, 2.2vw, 26px);
+    right: auto;
+  }
+
+  .theme-toggle-row--mobile {
+    display: none;
   }
 
   .flip-header {
@@ -711,7 +774,7 @@
 
   .timer-layout__info .goal-input {
     text-align: left;
-    font-size: clamp(24px, 2vw, 32px);
+    font-size: clamp(28px, 2.4vw, 38px);
   }
 
   .timer-layout__info .status-line {
@@ -786,7 +849,7 @@
   }
 
   .timer-layout__info .goal-input {
-    font-size: clamp(25px, 2.1vw, 34px);
+    font-size: clamp(32px, 2.8vw, 44px);
   }
 
   .tablet-time {
@@ -807,7 +870,9 @@
 
 @media (min-width: 768px) and (orientation: landscape) {
   .timer-layout {
-    gap: clamp(4px, 0.7vw, 8px);
+    grid-template-columns: auto auto;
+    justify-content: center;
+    gap: 30px;
   }
 
   .timer-layout__dial {
@@ -817,6 +882,6 @@
 
 @media (min-width: 1024px) and (orientation: landscape) {
   .timer-layout {
-    gap: clamp(2px, 0.5vw, 6px);
+    gap: 30px;
   }
 }

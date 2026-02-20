@@ -120,18 +120,18 @@ export function AnalogDial({
       <defs>
         {/* Metallic knob */}
         <radialGradient id="knob-metal" cx="40%" cy="32%" r="62%">
-          <stop offset="0%"   stopColor="#f2f2f0" />
-          <stop offset="30%"  stopColor="#d2d2d0" />
-          <stop offset="65%"  stopColor="#a8a8a6" />
-          <stop offset="100%" stopColor="#787876" />
+          <stop offset="0%"   stopColor="var(--dial-knob-stop-1)" />
+          <stop offset="30%"  stopColor="var(--dial-knob-stop-2)" />
+          <stop offset="65%"  stopColor="var(--dial-knob-stop-3)" />
+          <stop offset="100%" stopColor="var(--dial-knob-stop-4)" />
         </radialGradient>
         <radialGradient id="knob-shine" cx="36%" cy="26%" r="44%">
-          <stop offset="0%"   stopColor="rgba(255,255,255,0.75)" />
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.45)" />
           <stop offset="100%" stopColor="rgba(255,255,255,0)" />
         </radialGradient>
       </defs>
 
-      {/* Dial face — white */}
+      {/* Dial face */}
       <circle className="dial-face" cx={CENTER} cy={CENTER} r={OUTER_R} />
 
       {/* Red filled sector */}
@@ -161,6 +161,7 @@ export function AnalogDial({
             return (
               <text
                 key={i}
+                className="dial-label-large"
                 x={lx} y={ly}
                 textAnchor="middle"
                 dominantBaseline="central"
@@ -168,7 +169,6 @@ export function AnalogDial({
                 fontFamily='"Helvetica Neue Condensed Bold", "HelveticaNeue-CondensedBold", "Helvetica Neue", Helvetica, Arial, sans-serif'
                 fontWeight="700"
                 fontStyle="normal"
-                fill="#1a1a1a"
                 style={{ userSelect: 'none', pointerEvents: 'none' }}
               >
                 {tick.labelMin}
@@ -178,6 +178,7 @@ export function AnalogDial({
             return (
               <text
                 key={i}
+                className="dial-label-small"
                 x={lx} y={ly}
                 textAnchor="middle"
                 dominantBaseline="central"
@@ -185,7 +186,6 @@ export function AnalogDial({
                 fontFamily='"Helvetica Neue", Helvetica, Arial, sans-serif'
                 fontWeight="300"
                 fontStyle="italic"
-                fill="#444444"
                 style={{ userSelect: 'none', pointerEvents: 'none' }}
               >
                 {tick.labelMin}
@@ -196,7 +196,14 @@ export function AnalogDial({
 
       {/* Center knob rotates with the dial sector */}
       <g transform={`rotate(${arcAngle} ${CENTER} ${CENTER})`}>
-        <circle cx={CENTER} cy={CENTER} r={KNOB_R} fill="url(#knob-metal)" stroke="#909090" strokeWidth="0.8" />
+        <circle
+          cx={CENTER}
+          cy={CENTER}
+          r={KNOB_R}
+          fill="url(#knob-metal)"
+          stroke="var(--dial-knob-stroke)"
+          strokeWidth="0.8"
+        />
         <circle cx={CENTER} cy={CENTER} r={KNOB_R} fill="url(#knob-shine)" />
 
         <rect
@@ -206,11 +213,19 @@ export function AnalogDial({
           height={POINTER_H}
           rx={POINTER_W / 2}
           fill="url(#knob-metal)"
-          stroke="#8b8b8a"
+          stroke="var(--dial-pointer-stroke)"
           strokeWidth="0.35"
         />
 
-        <circle cx={CENTER} cy={CENTER} r={KNOB_R} fill="none" stroke="#606060" strokeWidth="0.5" opacity="0.5" />
+        <circle
+          cx={CENTER}
+          cy={CENTER}
+          r={KNOB_R}
+          fill="none"
+          stroke="var(--dial-knob-ring)"
+          strokeWidth="0.5"
+          opacity="0.6"
+        />
       </g>
     </svg>
   );

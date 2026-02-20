@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { playAlarm, primeAlarmAudio } from '../utils/sound';
+import { playAlarm, primeAlarmAudio, stopAlarm } from '../utils/sound';
 
 export type TimerState = 'idle' | 'running' | 'done';
 
@@ -26,6 +26,7 @@ export function useTimer(): UseTimerReturn {
   const start = useCallback(
     (totalSeconds: number) => {
       // Always restart from the new value so dragging while running reconfigures immediately.
+      stopAlarm();
       primeAlarmAudio();
       clearTimer();
       alarmFiredRef.current = false;
@@ -56,6 +57,7 @@ export function useTimer(): UseTimerReturn {
   );
 
   const reset = useCallback(() => {
+    stopAlarm();
     clearTimer();
     alarmFiredRef.current = false;
     setRemainingSeconds(0);
@@ -65,6 +67,7 @@ export function useTimer(): UseTimerReturn {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      stopAlarm();
       clearTimer();
     };
   }, [clearTimer]);

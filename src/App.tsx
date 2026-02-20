@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnalogDial } from './components/AnalogDial';
 import { ResetButton } from './components/ResetButton';
 import { useTimer } from './hooks/useTimer';
@@ -10,10 +10,262 @@ function pad(n: number) {
   return String(n).padStart(2, '0');
 }
 
-function FlipBox({ text, wide = false }: { text: string; wide?: boolean }) {
+const FLIP_DURATION_MS = 360;
+const THEME_STORAGE_KEY = 'pomodoro-theme';
+
+type ThemeMode = 'dark' | 'light';
+
+function toFlipUnits(value: string, splitDigits: boolean): string[] {
+  if (!splitDigits) {
+    return [value];
+  }
+
+  const normalized = value.length >= 2 ? value.slice(-2) : value.padStart(2, '0');
+  return [normalized[0] ?? '0', normalized[1] ?? '0'];
+}
+
+function usePrefersReducedMotion() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('matchMedia' in window)) {
+      return;
+    }
+
+    const mediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setPrefersReducedMotion(mediaQueryList.matches);
+
+    updatePreference();
+    mediaQueryList.addEventListener('change', updatePreference);
+
+    return () => {
+      mediaQueryList.removeEventListener('change', updatePreference);
+    };
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+function FlipBox({
+  value,
+  wide = false,
+  animate = true,
+  plain = false,
+  splitDigits = false,
+}: {
+  value: string;
+  wide?: boolean;
+  animate?: boolean;
+  plain?: boolean;
+  splitDigits?: boolean;
+}) {
+  const [displayUnits, setDisplayUnits] = useState(() => toFlipUnits(value, splitDigits));
+  const [incomingUnits, setIncomingUnits] = useState(() => toFlipUnits(value, splitDigits));
+  const [flippingUnits, setFlippingUnits] = useState(() =>
+    toFlipUnits(value, splitDigits).map(() => false),
+  );
+  const displayUnitsRef = useRef(displayUnits);
+  const incomingUnitsRef = useRef(incomingUnits);
+  const flippingUnitsRef = useRef(flippingUnits);
+  const flipTimersRef = useRef<Array<ReturnType<typeof setTimeout> | null>>(
+    toFlipUnits(value, splitDigits).map(() => null),
+  );
+
+  const clearFlipTimer = useCallback((index: number) => {
+    if (flipTimersRef.current[index] !== null) {
+      clearTimeout(flipTimersRef.current[index]);
+      flipTimersRef.current[index] = null;
+    }
+  }, []);
+
+  const clearAllFlipTimers = useCallback(() => {
+    for (let index = 0; index < flipTimersRef.current.length; index += 1) {
+      clearFlipTimer(index);
+    }
+  }, [clearFlipTimer]);
+
+  const commitUnitsImmediately = useCallback(
+    (nextUnits: string[]) => {
+      clearAllFlipTimers();
+      flipTimersRef.current = nextUnits.map(() => null);
+
+      const resetFlippingUnits = nextUnits.map(() => false);
+      displayUnitsRef.current = [...nextUnits];
+      incomingUnitsRef.current = [...nextUnits];
+      flippingUnitsRef.current = resetFlippingUnits;
+
+      setDisplayUnits([...nextUnits]);
+      setIncomingUnits([...nextUnits]);
+      setFlippingUnits(resetFlippingUnits);
+    },
+    [clearAllFlipTimers],
+  );
+
+  const startFlipAt = useCallback(
+    (index: number, nextUnit: string) => {
+      if (nextUnit === displayUnitsRef.current[index]) {
+        return;
+      }
+
+      clearFlipTimer(index);
+
+      setIncomingUnits((prev) => {
+        const next = [...prev];
+        next[index] = nextUnit;
+        incomingUnitsRef.current = next;
+        return next;
+      });
+
+      setFlippingUnits((prev) => {
+        const next = [...prev];
+        next[index] = true;
+        flippingUnitsRef.current = next;
+        return next;
+      });
+
+      flipTimersRef.current[index] = setTimeout(() => {
+        setDisplayUnits((prev) => {
+          const next = [...prev];
+          next[index] = nextUnit;
+          displayUnitsRef.current = next;
+          return next;
+        });
+
+        setIncomingUnits((prev) => {
+          const next = [...prev];
+          next[index] = nextUnit;
+          incomingUnitsRef.current = next;
+          return next;
+        });
+
+        setFlippingUnits((prev) => {
+          const next = [...prev];
+          next[index] = false;
+          flippingUnitsRef.current = next;
+          return next;
+        });
+
+        flipTimersRef.current[index] = null;
+      }, FLIP_DURATION_MS);
+    },
+    [clearFlipTimer],
+  );
+
+  useEffect(() => {
+    const scheduleId = window.setTimeout(() => {
+      const nextUnits = toFlipUnits(value, splitDigits);
+      if (nextUnits.length !== displayUnitsRef.current.length) {
+        commitUnitsImmediately(nextUnits);
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(scheduleId);
+    };
+  }, [value, splitDigits, commitUnitsImmediately]);
+
+  useEffect(() => {
+    const scheduleId = window.setTimeout(() => {
+      const nextUnits = toFlipUnits(value, splitDigits);
+
+      if (!animate) {
+        const hasDiff = nextUnits.some(
+          (unit, index) => unit !== displayUnitsRef.current[index] || flippingUnitsRef.current[index],
+        );
+        if (hasDiff) {
+          commitUnitsImmediately(nextUnits);
+        }
+        return;
+      }
+
+      nextUnits.forEach((unit, index) => {
+        if (flippingUnitsRef.current[index]) {
+          return;
+        }
+        if (unit === displayUnitsRef.current[index]) {
+          return;
+        }
+        startFlipAt(index, unit);
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(scheduleId);
+    };
+  }, [value, animate, splitDigits, flippingUnits, startFlipAt, commitUnitsImmediately]);
+
+  useEffect(() => {
+    return () => {
+      clearAllFlipTimers();
+    };
+  }, [clearAllFlipTimers]);
+
+  if (plain) {
+    return (
+      <div className={`flip-box flip-box--plain${wide ? ' flip-box--wide' : ''}`}>
+        {value}
+      </div>
+    );
+  }
+
+  const isAnyFlipping = flippingUnits.some(Boolean);
+  const rootClassName = `flip-box${wide ? ' flip-box--wide' : ''}${splitDigits ? ' flip-box--split' : ''}${isAnyFlipping ? ' is-flipping' : ''}`;
+
+  if (splitDigits) {
+    return (
+      <div className={rootClassName}>
+        <div className="flip-box__digit-track">
+          {displayUnits.map((displayUnit, index) => {
+            const incomingUnit = incomingUnits[index] ?? displayUnit;
+            const isDigitFlipping = flippingUnits[index] ?? false;
+
+            return (
+              <div className={`flip-box__digit${isDigitFlipping ? ' is-flipping' : ''}`} key={index}>
+                <div className="flip-box__digit-half flip-box__digit-half--top">
+                  <span>{displayUnit}</span>
+                </div>
+                <div className="flip-box__digit-half flip-box__digit-half--bottom">
+                  <span>{displayUnit}</span>
+                </div>
+                {isDigitFlipping ? (
+                  <>
+                    <div className="flip-box__digit-flap flip-box__digit-flap--top">
+                      <span>{displayUnit}</span>
+                    </div>
+                    <div className="flip-box__digit-flap flip-box__digit-flap--bottom">
+                      <span>{incomingUnit}</span>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  const displayValue = displayUnits[0] ?? value;
+  const incomingValue = incomingUnits[0] ?? displayValue;
+
   return (
-    <div className={`flip-box${wide ? ' flip-box--wide' : ''}`}>
-      {text}
+    <div className={rootClassName}>
+      <div className="flip-box__half flip-box__half--top">
+        <span>{displayValue}</span>
+      </div>
+      <div className="flip-box__half flip-box__half--bottom">
+        <span>{displayValue}</span>
+      </div>
+      {isAnyFlipping ? (
+        <>
+          <div className="flip-box__flap flip-box__flap--top">
+            <span>{displayValue}</span>
+          </div>
+          <div className="flip-box__flap flip-box__flap--bottom">
+            <span>{incomingValue}</span>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -27,18 +279,74 @@ function getLabel(state: TimerState, totalSeconds: number): string {
 
 export default function App() {
   const { remainingSeconds, state, start, reset } = useTimer();
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') {
+      return 'dark';
+    }
+
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return savedTheme === 'light' ? 'light' : 'dark';
+  });
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [goal, setGoal] = useState('');
   const [dragPreviewMinutes, setDragPreviewMinutes] = useState(0);
   const [isDialDragging, setIsDialDragging] = useState(false);
+  const [isCompletionDismissed, setIsCompletionDismissed] = useState(false);
+  const completionAutoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const isCompletionModalOpen = state === 'done' && !isCompletionDismissed;
+
+  const clearCompletionTimer = useCallback(() => {
+    if (completionAutoCloseTimerRef.current !== null) {
+      clearTimeout(completionAutoCloseTimerRef.current);
+      completionAutoCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const closeCompletionModal = useCallback(() => {
+    clearCompletionTimer();
+    setIsCompletionDismissed(true);
+  }, [clearCompletionTimer]);
 
   useEffect(() => {
     installAudioUnlock();
   }, []);
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themeMode);
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
+    if (!isCompletionModalOpen) {
+      clearCompletionTimer();
+      return;
+    }
+
+    completionCloseButtonRef.current?.focus();
+    completionAutoCloseTimerRef.current = setTimeout(() => {
+      setIsCompletionDismissed(true);
+      completionAutoCloseTimerRef.current = null;
+    }, 4000);
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeCompletionModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+      clearCompletionTimer();
+    };
+  }, [isCompletionModalOpen, closeCompletionModal, clearCompletionTimer]);
+
   const handleDragEnd = useCallback(
     (minutes: number) => {
       const seconds = minutes * 60;
+      setIsCompletionDismissed(false);
       setTotalSeconds(seconds);
       start(seconds);
     },
@@ -46,11 +354,13 @@ export default function App() {
   );
 
   const handleReset = useCallback(() => {
+    closeCompletionModal();
     reset();
     setTotalSeconds(0);
     setDragPreviewMinutes(0);
     setIsDialDragging(false);
-  }, [reset]);
+    setIsCompletionDismissed(true);
+  }, [reset, closeCompletionModal]);
 
   const handleDragPreview = useCallback(
     ({ isDragging, minutes }: { isDragging: boolean; minutes: number }) => {
@@ -61,6 +371,9 @@ export default function App() {
   );
 
   const isResetDisabled = state === 'idle' && totalSeconds === 0;
+  const handleThemeToggle = useCallback(() => {
+    setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
 
   const statusText =
     state === 'running'
@@ -78,12 +391,54 @@ export default function App() {
   const displaySecs = shouldShowPlaceholder
     ? '--'
     : pad(previewSeconds % 60);
+  const trimmedGoal = goal.trim();
+  const completionDescription = trimmedGoal
+    ? `Goal complete: ${trimmedGoal}`
+    : 'Session complete. Take a short break and start the next round.';
+  const shouldAnimateClock = !prefersReducedMotion && !isDialDragging;
+  const renderThemeToggleButton = () => (
+    <button
+      type="button"
+      className="theme-toggle-button"
+      onClick={handleThemeToggle}
+      aria-label={`Switch to ${themeMode === 'dark' ? 'light' : 'dark'} mode`}
+      title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      <svg className="theme-toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+        {themeMode === 'dark' ? (
+          <>
+            <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <path
+              d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          </>
+        ) : (
+          <path
+            d="M20.2 13.3A8.6 8.6 0 1 1 10.7 3.8a7 7 0 0 0 9.5 9.5Z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+      </svg>
+    </button>
+  );
 
   return (
     <div className="app-shell">
       <div className="app-outer">
         <main className="app-frame">
-          <div className="goal-input-group">
+          <div className="theme-toggle-row theme-toggle-row--desktop">
+            {renderThemeToggleButton()}
+          </div>
+
+          <div className="goal-input-group goal-input-group--mobile">
             <input
               id="timer-goal"
               className="goal-input"
@@ -97,32 +452,94 @@ export default function App() {
 
           {/* Flip-clock header */}
           <div className="flip-header" role="timer" aria-live="polite" aria-label="Timer display">
-            <FlipBox text={label} wide />
-            <FlipBox text={displayMins} />
-            <FlipBox text={displaySecs} />
+            <FlipBox value={label} wide animate={false} plain />
+            <FlipBox value={displayMins} animate={shouldAnimateClock} splitDigits />
+            <FlipBox value={displaySecs} animate={shouldAnimateClock} splitDigits />
           </div>
 
-          {/* Status */}
-          <div className="status-line">
-            <p className="status-message" data-state={state}>
-              {statusText}
-            </p>
+          <div className="timer-layout">
+            <section className="timer-layout__dial" aria-label="Dial controls">
+              {/* Dial */}
+              <AnalogDial
+                remainingSeconds={remainingSeconds}
+                totalSeconds={totalSeconds}
+                timerState={state}
+                onDragEnd={handleDragEnd}
+                onDragPreview={handleDragPreview}
+              />
+
+              {/* Reset */}
+              <div className="reset-button-wrap reset-button-wrap--mobile">
+                <div className="dial-action-row">
+                  <ResetButton onClick={handleReset} disabled={isResetDisabled} />
+                  <div className="theme-toggle-row theme-toggle-row--mobile">
+                    {renderThemeToggleButton()}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="timer-layout__info" aria-label="Timer status">
+              <div className="goal-input-group goal-input-group--tablet">
+                <input
+                  id="timer-goal-tablet"
+                  className="goal-input"
+                  type="text"
+                  value={goal}
+                  onChange={(event) => setGoal(event.target.value)}
+                  placeholder="Write your goal"
+                  maxLength={80}
+                />
+              </div>
+
+              <div className="tablet-time" role="timer" aria-live="polite" aria-label="Remaining time">
+                <FlipBox value={label} wide animate={false} plain />
+                <FlipBox value={displayMins} animate={shouldAnimateClock} splitDigits />
+                <FlipBox value={displaySecs} animate={shouldAnimateClock} splitDigits />
+              </div>
+
+              {/* Status */}
+              <div className="status-line">
+                <p className="status-message" data-state={state}>
+                  {statusText}
+                </p>
+              </div>
+
+              <div className="reset-button-wrap reset-button-wrap--tablet">
+                <ResetButton onClick={handleReset} disabled={isResetDisabled} />
+              </div>
+            </section>
           </div>
-
-          {/* Dial */}
-          <AnalogDial
-            remainingSeconds={remainingSeconds}
-            totalSeconds={totalSeconds}
-            timerState={state}
-            onDragEnd={handleDragEnd}
-            onDragPreview={handleDragPreview}
-          />
-
-          {/* Reset */}
-          <ResetButton onClick={handleReset} disabled={isResetDisabled} />
 
         </main>
       </div>
+
+      {isCompletionModalOpen ? (
+        <div className="completion-modal-backdrop" role="presentation">
+          <section
+            className="completion-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="completion-modal-title"
+            aria-describedby="completion-modal-description"
+          >
+            <h2 id="completion-modal-title" className="completion-modal-title">
+              Timer<br />complete
+            </h2>
+            <p id="completion-modal-description" className="completion-modal-description">
+              {completionDescription}
+            </p>
+            <button
+              ref={completionCloseButtonRef}
+              type="button"
+              className="completion-modal-button"
+              onClick={closeCompletionModal}
+            >
+              OK
+            </button>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -16,7 +16,9 @@
 }
 
 .dial-face {
-  fill: #ffffff;
+  fill: var(--dial-face);
+  stroke: var(--dial-face-stroke);
+  stroke-width: 1.4;
 }
 
 .dial-sector {
@@ -28,13 +30,21 @@
 }
 
 .dial-tick-major {
-  stroke: #1a1a1a;
+  stroke: var(--dial-tick-major);
   stroke-width: 1.8;
 }
 
 .dial-tick-minor {
-  stroke: #888888;
+  stroke: var(--dial-tick-minor);
   stroke-width: 1;
+}
+
+.dial-label-large {
+  fill: var(--dial-label-large);
+}
+
+.dial-label-small {
+  fill: var(--dial-label-small);
 }
 
 @media (min-width: 768px) {

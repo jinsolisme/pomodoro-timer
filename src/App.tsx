@@ -11,6 +11,9 @@ function pad(n: number) {
 }
 
 const FLIP_DURATION_MS = 360;
+const THEME_STORAGE_KEY = 'pomodoro-theme';
+
+type ThemeMode = 'dark' | 'light';
 
 function toFlipUnits(value: string, splitDigits: boolean): string[] {
   if (!splitDigits) {
@@ -277,6 +280,14 @@ function getLabel(state: TimerState, totalSeconds: number): string {
 export default function App() {
   const { remainingSeconds, state, start, reset } = useTimer();
   const prefersReducedMotion = usePrefersReducedMotion();
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') {
+      return 'dark';
+    }
+
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return savedTheme === 'light' ? 'light' : 'dark';
+  });
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [goal, setGoal] = useState('');
   const [dragPreviewMinutes, setDragPreviewMinutes] = useState(0);
@@ -301,6 +312,11 @@ export default function App() {
   useEffect(() => {
     installAudioUnlock();
   }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themeMode);
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     if (!isCompletionModalOpen) {
@@ -355,6 +371,9 @@ export default function App() {
   );
 
   const isResetDisabled = state === 'idle' && totalSeconds === 0;
+  const handleThemeToggle = useCallback(() => {
+    setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
 
   const statusText =
     state === 'running'
@@ -382,6 +401,40 @@ export default function App() {
     <div className="app-shell">
       <div className="app-outer">
         <main className="app-frame">
+          <div className="theme-toggle-row">
+            <button
+              type="button"
+              className="theme-toggle-button"
+              onClick={handleThemeToggle}
+              aria-label={`Switch to ${themeMode === 'dark' ? 'light' : 'dark'} mode`}
+              title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              <svg className="theme-toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+                {themeMode === 'dark' ? (
+                  <>
+                    <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                    <path
+                      d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  </>
+                ) : (
+                  <path
+                    d="M20.2 13.3A8.6 8.6 0 1 1 10.7 3.8a7 7 0 0 0 9.5 9.5Z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </svg>
+            </button>
+          </div>
+
           <div className="goal-input-group goal-input-group--mobile">
             <input
               id="timer-goal"

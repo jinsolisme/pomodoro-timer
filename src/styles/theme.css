@@ -2,20 +2,9 @@
   --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: "Helvetica Neue", "Courier New", monospace;
-
-  --bg-layer-primary: #ffffff;
-  --panel-bg: #ffffff;
-  --panel-edge: #1c1c1c;
-  --panel-shadow:
-    0 4px 32px rgba(0, 0, 0, 0.13),
-    0 1px 4px rgba(0, 0, 0, 0.08);
-
-  --text-primary: #1a1a1a;
-  --text-muted: #555555;
-  --text-faint: #888888;
   --accent: #b60d1c;
   --accent-strong: #8a0a15;
-  --focus-ring: #b60d1c;
+  --focus-ring: #da4655;
 
   --radius-xl: 18px;
   --radius-pill: 999px;
@@ -28,6 +17,69 @@
   --space-10: 40px;
   --time-quick: 180ms;
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-layer-primary: #111111;
+  --panel-bg: #1c1c1c;
+  --panel-edge: #3a3a3a;
+  --panel-shadow:
+    0 22px 52px rgba(0, 0, 0, 0.52),
+    0 2px 8px rgba(0, 0, 0, 0.44);
+  --text-primary: #eeeeee;
+  --text-muted: #aaaaaa;
+  --text-faint: #7e7e7e;
+  --goal-input-line: rgba(236, 236, 236, 0.34);
+  --goal-input-placeholder: rgba(236, 236, 236, 0.38);
+  --theme-toggle-bg: #222222;
+  --theme-toggle-border: #454545;
+  --theme-toggle-hover: #2b2b2b;
+  --dial-face: #232323;
+  --dial-face-stroke: #232323;
+  --dial-tick-major: #e7e7e7;
+  --dial-tick-minor: #919191;
+  --dial-label-large: #e6e6e6;
+  --dial-label-small: #a8a8a8;
+  --dial-knob-stop-1: #d8d8d8;
+  --dial-knob-stop-2: #a9a9a9;
+  --dial-knob-stop-3: #717171;
+  --dial-knob-stop-4: #464646;
+  --dial-knob-stroke: #777777;
+  --dial-pointer-stroke: #666666;
+  --dial-knob-ring: #353535;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-layer-primary: #ffffff;
+  --panel-bg: #ffffff;
+  --panel-edge: #cbcbcb;
+  --panel-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.1),
+    inset 0 0 34px rgba(0, 0, 0, 0.06);
+  --text-primary: #1e1e1e;
+  --text-muted: #5d5d5d;
+  --text-faint: #7f7f7f;
+  --goal-input-line: rgba(36, 36, 36, 0.28);
+  --goal-input-placeholder: rgba(30, 30, 30, 0.34);
+  --theme-toggle-bg: #f2f2f2;
+  --theme-toggle-border: #bdbdbd;
+  --theme-toggle-hover: #e6e6e6;
+  --dial-face: #ffffff;
+  --dial-face-stroke: #ffffff;
+  --dial-tick-major: #1e1e1e;
+  --dial-tick-minor: #909090;
+  --dial-label-large: #1f1f1f;
+  --dial-label-small: #575757;
+  --dial-knob-stop-1: #f2f2f0;
+  --dial-knob-stop-2: #d2d2d0;
+  --dial-knob-stop-3: #a8a8a6;
+  --dial-knob-stop-4: #787876;
+  --dial-knob-stroke: #909090;
+  --dial-pointer-stroke: #8b8b8a;
+  --dial-knob-ring: #606060;
 }
 
 @media (prefers-reduced-motion: reduce) {
